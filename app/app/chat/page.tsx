@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Chat {
@@ -17,17 +17,30 @@ interface Message {
 
 export default function ChatPage() {
   const router = useRouter();
-  const [chats, setChats] = useState<Chat[]>([
-    { id: '1', title: 'Chat 1' },
-    { id: '2', title: 'Chat 2' },
-  ]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(chats[0]?.id || null);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
   const [inputText, setInputText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.title = 'Magus - Chat';
   }, []);
+
+  // Auto-scroll to bottom when messages change or chat changes
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      const scrollToBottom = () => {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      };
+      
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(scrollToBottom, 0);
+    }
+  }, [messages, activeChatId]);
 
   const handleLogout = async () => {
     try {
@@ -42,13 +55,31 @@ export default function ChatPage() {
   };
 
   const handleNewChat = () => {
+    const chatNumber = chats.length + 1;
     const newChat: Chat = {
       id: Date.now().toString(),
-      title: `Chat ${chats.length + 1}`,
+      title: `Chat ${chatNumber}`,
     };
     setChats([newChat, ...chats]);
     setActiveChatId(newChat.id);
     setMessages({ ...messages, [newChat.id]: [] });
+  };
+
+  const handleDeleteChat = (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering chat selection
+    
+    // Remove chat from list
+    setChats(chats.filter(chat => chat.id !== chatId));
+    
+    // Remove messages for this chat
+    const updatedMessages = { ...messages };
+    delete updatedMessages[chatId];
+    setMessages(updatedMessages);
+    
+    // If deleted chat was active, clear active chat
+    if (activeChatId === chatId) {
+      setActiveChatId(null);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -146,19 +177,40 @@ export default function ChatPage() {
           <div className="flex-1 overflow-y-auto">
             <nav className="p-2">
               {chats.map((chat) => (
-                <button
+                <div
                   key={chat.id}
-                  onClick={() => setActiveChatId(chat.id)}
-                  className={`mb-1 w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                  className={`mb-1 flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors group ${
                     activeChatId === chat.id
                       ? 'bg-gray-100 dark:bg-gray-800'
                       : 'hover:bg-gray-50 dark:hover:bg-gray-900'
                   }`}
                 >
-                  <div className="truncate text-black dark:text-white">
+                  <button
+                    onClick={() => setActiveChatId(chat.id)}
+                    className="flex-1 text-left truncate text-black dark:text-white"
+                  >
                     {chat.title}
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteChat(chat.id, e)}
+                    className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
+                    title="Delete chat"
+                  >
+                    <svg
+                      className="w-4 h-4 text-gray-500 dark:text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
               ))}
             </nav>
           </div>
@@ -169,7 +221,11 @@ export default function ChatPage() {
           {activeChatId ? (
             <>
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-950">
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-950 scrollbar-thin"
+                style={{ scrollbarWidth: 'auto' }}
+              >
                 <div className="mx-auto max-w-3xl space-y-2">
                   {(messages[activeChatId] || []).map((message) => {
                     const isUser = message.isUser ?? true; // Default to user if not specified
@@ -202,6 +258,7 @@ export default function ChatPage() {
                       <p>No messages yet. Start a conversation!</p>
                     </div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
               </div>
 
