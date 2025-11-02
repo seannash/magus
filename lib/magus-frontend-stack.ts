@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class MagusFrontendStack extends cdk.Stack {
@@ -7,6 +8,17 @@ export class MagusFrontendStack extends cdk.Stack {
     super(scope, id, props);
 
     // The code that defines your stack goes here
+
+    // DynamoDB table for user authentication
+    // userId is the email address
+    const userAuthTable = new dynamodb.Table(this, 'UserAuthTable', {
+      tableName: 'magus-user-auth',
+      partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Change to RETAIN in production
+      pointInTimeRecovery: true,
+      encryption: dynamodb.TableEncryption.AWS_MANAGED,
+    });
 
     // example resource
     // const queue = new sqs.Queue(this, 'MagusFrontendQueue', {
