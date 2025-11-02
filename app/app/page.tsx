@@ -7,6 +7,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
+    document.title = 'Magus';
     // Check authentication status
     fetch('/api/auth/session')
       .then((res) => {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface Chat {
   id: string;
@@ -14,6 +15,7 @@ interface Message {
 }
 
 export default function ChatPage() {
+  const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([
     { id: '1', title: 'Chat 1' },
     { id: '2', title: 'Chat 2' },
@@ -21,6 +23,22 @@ export default function ChatPage() {
   const [activeChatId, setActiveChatId] = useState<string | null>(chats[0]?.id || null);
   const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
   const [inputText, setInputText] = useState('');
+
+  useEffect(() => {
+    document.title = 'Magus - Chat';
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/login');
+      router.refresh();
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Still redirect even if logout fails
+      router.push('/login');
+    }
+  };
 
   const handleNewChat = () => {
     const newChat: Chat = {
@@ -60,10 +78,19 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-black">
       {/* Header */}
-      <header className="flex h-16 items-center border-b border-gray-200 px-6 dark:border-gray-800">
-        <h1 className="text-2xl font-semibold text-black dark:text-white">
+      <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white px-6 dark:border-gray-800 dark:from-gray-900 dark:to-black">
+        <div className="flex-1"></div>
+        <h1 className="flex-1 text-center text-3xl font-bold tracking-tight bg-gradient-to-r from-black to-gray-700 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
           Magus
         </h1>
+        <div className="flex flex-1 justify-end">
+          <button
+            onClick={handleLogout}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-black dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+          >
+            Logout
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">

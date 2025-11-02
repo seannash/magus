@@ -157,6 +157,7 @@ export default function UserManagementPage() {
 
   // Load users on component mount
   useEffect(() => {
+    document.title = 'Magus - User Management';
     loadUsers();
   }, []);
 
