@@ -12,6 +12,7 @@ interface Message {
   id: string;
   text: string;
   timestamp: Date;
+  isUser?: boolean;
 }
 
 export default function ChatPage() {
@@ -50,22 +51,60 @@ export default function ChatPage() {
     setMessages({ ...messages, [newChat.id]: [] });
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!inputText.trim() || !activeChatId) return;
 
-    const newMessage: Message = {
+    const userPrompt = inputText.trim();
+    const userMessage: Message = {
       id: Date.now().toString(),
-      text: inputText,
+      text: userPrompt,
       timestamp: new Date(),
+      isUser: true,
     };
 
     const chatMessages = messages[activeChatId] || [];
+    const updatedMessages = [...chatMessages, userMessage];
+    
     setMessages({
       ...messages,
-      [activeChatId]: [...chatMessages, newMessage],
+      [activeChatId]: updatedMessages,
     });
 
     setInputText('');
+
+    // Call backend API to get response
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt: userPrompt }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.message) {
+        const apiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: data.message,
+          timestamp: new Date(),
+          isUser: false,
+        };
+
+        setMessages((prevMessages) => {
+          const currentChatMessages = prevMessages[activeChatId] || [];
+          return {
+            ...prevMessages,
+            [activeChatId]: [...currentChatMessages, apiMessage],
+          };
+        });
+      } else {
+        console.error('Failed to get response from API:', data.error);
+      }
+    } catch (error) {
+      console.error('Error calling chat API:', error);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -130,18 +169,34 @@ export default function ChatPage() {
           {activeChatId ? (
             <>
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="mx-auto max-w-3xl space-y-4">
-                  {(messages[activeChatId] || []).map((message) => (
-                    <div
-                      key={message.id}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900"
-                    >
-                      <p className="text-black dark:text-white whitespace-pre-wrap">
-                        {message.text}
-                      </p>
-                    </div>
-                  ))}
+              <div className="flex-1 overflow-y-auto p-4 bg-gray-100 dark:bg-gray-950">
+                <div className="mx-auto max-w-3xl space-y-2">
+                  {(messages[activeChatId] || []).map((message) => {
+                    const isUser = message.isUser ?? true; // Default to user if not specified
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                            isUser
+                              ? 'bg-blue-500 text-white rounded-br-sm'
+                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm shadow-sm border border-gray-200 dark:border-gray-700'
+                          }`}
+                          style={{
+                            borderRadius: isUser
+                              ? '1rem 1rem 1rem 0.25rem'
+                              : '1rem 1rem 0.25rem 1rem',
+                          }}
+                        >
+                          <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
+                            {message.text}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
                   {(!messages[activeChatId] || messages[activeChatId].length === 0) && (
                     <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
                       <p>No messages yet. Start a conversation!</p>
@@ -151,23 +206,36 @@ export default function ChatPage() {
               </div>
 
               {/* Input Area */}
-              <div className="border-t border-gray-200 p-6 dark:border-gray-800">
+              <div className="border-t border-gray-200 bg-white dark:bg-gray-900 p-4 dark:border-gray-800">
                 <div className="mx-auto max-w-3xl">
-                  <div className="flex gap-4">
+                  <div className="flex gap-2 items-end">
                     <textarea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyDown={handleKeyPress}
-                      placeholder="Type your message..."
-                      className="flex-1 resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 text-black placeholder-gray-500 focus:border-black focus:outline-none focus:ring-2 focus:ring-black dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-400 dark:focus:border-white dark:focus:ring-white"
+                      placeholder="Type a message"
+                      className="flex-1 resize-none rounded-full border border-gray-300 bg-gray-100 dark:bg-gray-800 px-4 py-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:text-white dark:placeholder-gray-400"
                       rows={1}
                     />
                     <button
                       onClick={handleSendMessage}
                       disabled={!inputText.trim()}
-                      className="rounded-lg bg-black px-6 py-3 font-medium text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                      className="rounded-full bg-blue-500 p-3 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-500"
+                      title="Send"
                     >
-                      Send
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                        />
+                      </svg>
                     </button>
                   </div>
                 </div>
