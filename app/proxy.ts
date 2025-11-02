@@ -18,8 +18,8 @@ export async function proxy(request: NextRequest) {
   const isAuthenticated = token ? await verifyToken(token) : false;
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/login', '/users'];
-  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/api/auth/login') || pathname.startsWith('/api/users');
+  const publicRoutes = ['/login'];
+  const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/api/auth/login');
 
   // Handle root path
   if (pathname === '/') {
@@ -35,10 +35,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect authenticated routes (chat, etc.)
-  if (pathname.startsWith('/chat')) {
+  // Protect authenticated routes (chat, users, etc.)
+  if (pathname.startsWith('/chat') || pathname.startsWith('/users')) {
     if (!isAuthenticated) {
       return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
+  // Protect users API routes (except login API)
+  if (pathname.startsWith('/api/users')) {
+    if (!isAuthenticated) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
   }
 

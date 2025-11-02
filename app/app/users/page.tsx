@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface User {
   email: string;
@@ -9,6 +10,7 @@ interface User {
 }
 
 export default function UserManagementPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -158,8 +160,24 @@ export default function UserManagementPage() {
   // Load users on component mount
   useEffect(() => {
     document.title = 'Magus - User Management';
-    loadUsers();
-  }, []);
+    
+    // Check authentication status
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (!res.ok) {
+          router.push('/login');
+        } else {
+          loadUsers();
+        }
+      } catch {
+        router.push('/login');
+      }
+    };
+    
+    checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   return (
     <div className="flex min-h-screen bg-white dark:bg-black">
