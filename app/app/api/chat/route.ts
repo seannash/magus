@@ -1,41 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '../auth/utils';
-import { ChatBedrockConverse } from '@langchain/aws';
-import { HumanMessage } from '@langchain/core/messages';
+import { BedrockAgentRuntimeClient, RetrieveAndGenerateCommand } from '@aws-sdk/client-bedrock-agent-runtime';
 
-// Initialize Bedrock LLM via LangChain (reusable instance)
-function getLLM() {
+// Initialize Bedrock Agent Runtime client
+function getBedrockClient() {
   const region = process.env.AWS_REGION || 'us-east-1';
-  const modelId = process.env.BEDROCK_MODEL_ID || 'amazon.titan-text-express-v1';
   
-  // Build credentials object only if environment variables are provided
-  const credentialsConfig: any = {
+  const config: any = {
     region,
-    model: modelId,
-    temperature: 0.7,
-    maxTokens: 1000,
   };
 
   // Add credentials if provided via environment variables
   // Otherwise, SDK will use default credential chain (IAM roles, ~/.aws/credentials, etc.)
   if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-    credentialsConfig.credentials = {
+    config.credentials = {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     };
   }
   
-  return new ChatBedrockConverse(credentialsConfig);
+  return new BedrockAgentRuntimeClient(config);
 }
 
-// Cache the LLM instance
-let llmInstance: ChatBedrockConverse | null = null;
+// Cache the client instance
+let bedrockClient: BedrockAgentRuntimeClient | null = null;
 
-function getCachedLLM(): ChatBedrockConverse {
-  if (!llmInstance) {
-    llmInstance = getLLM();
+function getCachedBedrockClient(): BedrockAgentRuntimeClient {
+  if (!bedrockClient) {
+    bedrockClient = getBedrockClient();
   }
-  return llmInstance;
+  return bedrockClient;
 }
 
 export async function POST(request: NextRequest) {
@@ -58,15 +52,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the cached LLM instance
-    const llm = getCachedLLM();
+    // Get the cached Bedrock client
+    const client = getCachedBedrockClient();
+    
+    // Knowledge base ID - VTN3OAQTUA
+    const knowledgeBaseId = process.env.BEDROCK_KNOWLEDGE_BASE_ID || 'ZSXUATKCEV';
+    const region = process.env.AWS_REGION || 'us-east-1';
+    
+    // Model ARN - Use Titan model
+    // Format: arn:aws:bedrock:region::foundation-model/model-id
+    const modelId = process.env.BEDROCK_MODEL_ID || 'amazon.nova-micro-v1:0';
+    const modelArn = `arn:aws:bedrock:${region}::foundation-model/${modelId}`;
 
-    // Invoke the model with the user's prompt
-    const messages = [new HumanMessage(prompt)];
-    const response = await llm.invoke(messages);
+    // Call RetrieveAndGenerate API
+    const command = new RetrieveAndGenerateCommand({
+      input: {
+        text: prompt,
+      },
+      retrieveAndGenerateConfiguration: {
+        type: 'KNOWLEDGE_BASE',
+        knowledgeBaseConfiguration: {
+          knowledgeBaseId: knowledgeBaseId,
+          modelArn: modelArn,
+          vectorSearchConfiguration: {
+            numberOfResults: 20,
+          },
+        },
+      },
+    });
 
-    // Extract the text content from the response
-    const responseText = response.content?.toString() || 'Thank you';
+    const response = await client.send(command);
+
+    // Extract the generated text from the response
+    const responseText = response.output?.text || 'Thank you';
 
     return NextResponse.json({
       message: responseText,
