@@ -267,14 +267,9 @@ export default function ChatPage() {
                         <div
                           className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
                             isUser
-                              ? 'bg-blue-500 text-white rounded-br-sm'
-                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm shadow-sm border border-gray-200 dark:border-gray-700'
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-700'
                           }`}
-                          style={{
-                            borderRadius: isUser
-                              ? '1rem 1rem 1rem 0.25rem'
-                              : '1rem 1rem 0.25rem 1rem',
-                          }}
                         >
                           <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
                             {message.text}
@@ -285,7 +280,7 @@ export default function ChatPage() {
                   })}
                   {isLoading && (
                     <div className="flex justify-start">
-                      <div className="max-w-[75%] rounded-2xl bg-white dark:bg-gray-800 px-4 py-2.5 rounded-bl-sm shadow-sm border border-gray-200 dark:border-gray-700">
+                      <div className="max-w-[75%] rounded-2xl bg-white dark:bg-gray-800 px-4 py-2.5 shadow-sm border border-gray-200 dark:border-gray-700">
                         <LoadingDots />
                       </div>
                     </div>
