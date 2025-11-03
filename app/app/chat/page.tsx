@@ -3,6 +3,30 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
+// Loading dots component
+function LoadingDots() {
+  const [dotCount, setDotCount] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDotCount((prev) => (prev + 1) % 6); // Cycle 0-5
+    }, 400); // Change every 400ms
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-1 py-1">
+      {Array.from({ length: dotCount }).map((_, i) => (
+        <div
+          key={i}
+          className="h-2 w-2 rounded-full bg-gray-600 dark:bg-gray-400"
+        />
+      ))}
+    </div>
+  );
+}
+
 interface Chat {
   id: string;
   title: string;
@@ -21,6 +45,7 @@ export default function ChatPage() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
   const [inputText, setInputText] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +65,7 @@ export default function ChatPage() {
       // Use setTimeout to ensure DOM is updated
       setTimeout(scrollToBottom, 0);
     }
-  }, [messages, activeChatId]);
+  }, [messages, activeChatId, isLoading]);
 
   const handleLogout = async () => {
     try {
@@ -103,6 +128,9 @@ export default function ChatPage() {
 
     setInputText('');
 
+    // Set loading state
+    setIsLoading(true);
+
     // Call backend API to get response
     try {
       const response = await fetch('/api/chat', {
@@ -135,6 +163,8 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Error calling chat API:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -253,7 +283,14 @@ export default function ChatPage() {
                       </div>
                     );
                   })}
-                  {(!messages[activeChatId] || messages[activeChatId].length === 0) && (
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[75%] rounded-2xl bg-white dark:bg-gray-800 px-4 py-2.5 rounded-bl-sm shadow-sm border border-gray-200 dark:border-gray-700">
+                        <LoadingDots />
+                      </div>
+                    </div>
+                  )}
+                  {(!messages[activeChatId] || messages[activeChatId].length === 0) && !isLoading && (
                     <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
                       <p>No messages yet. Start a conversation!</p>
                     </div>
@@ -276,7 +313,7 @@ export default function ChatPage() {
                     />
                     <button
                       onClick={handleSendMessage}
-                      disabled={!inputText.trim()}
+                      disabled={!inputText.trim() || isLoading}
                       className="rounded-full bg-blue-500 p-3 text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-500"
                       title="Send"
                     >
